@@ -598,21 +598,23 @@ func (c *Curve) ModAddMul(a1, b1 []driver.Zr, m driver.Zr) driver.Zr {
 
 func (p *Curve) AddPairsOfProducts(left []driver.Zr, right []driver.Zr, leftgen []driver.G1, rightgen []driver.G1) driver.G1 {
 	tmpJac := G1Jacs.Get()
+	sum := G1Jacs.Get()
 	defer G1Jacs.Put(tmpJac)
-	sum := &G1{}
-	tmp := &G1{}
+	defer G1Jacs.Put(sum)
+	result := &G1{}
 
 	for i := 0; i < len(left); i++ {
 		tmpJac = JointScalarMultiplication(tmpJac, &leftgen[i].(*G1).G1Affine, &rightgen[i].(*G1).G1Affine, &left[i].(*Zr).Int, &right[i].(*Zr).Int)
-		tmp.G1Affine.FromJacobian(tmpJac)
+
 		if i == 0 {
-			sum.G1Affine.Set(&tmp.G1Affine)
+			sum.Set(tmpJac)
 		} else {
-			sum.Add(tmp)
+			sum.AddAssign(tmpJac)
 		}
 	}
+	result.G1Affine.FromJacobian(sum)
 
-	return sum
+	return result
 }
 
 func (c *Curve) ModAddMul2(a1 driver.Zr, c1 driver.Zr, b1 driver.Zr, c2 driver.Zr, m driver.Zr) driver.Zr {
@@ -783,7 +785,9 @@ func JointScalarMultiplication(p *bls12381.G1Jac, a1, a2 *bls12381.G1Affine, s1,
 	for i := hiWordIndex; i >= 0; i-- {
 		mask := uint64(3) << 62
 		for j := 0; j < 32; j++ {
-			res.Double(&res).Double(&res)
+			if res != g1Infinity {
+				res.Double(&res).Double(&res)
+			}
 			b1 := (s[0][i] & mask) >> (62 - 2*j)
 			b2 := (s[1][i] & mask) >> (62 - 2*j)
 			if b1|b2 != 0 {
