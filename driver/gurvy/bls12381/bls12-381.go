@@ -785,7 +785,11 @@ func JointScalarMultiplication(p *bls12381.G1Jac, a1, a2 *bls12381.G1Affine, s1,
 	for i := hiWordIndex; i >= 0; i-- {
 		mask := uint64(3) << 62
 		for j := 0; j < 32; j++ {
-			if res != g1Infinity {
+			// When j == 0 res is infinity, so Double doesn't have an effect.
+			// We could check that res == g1Infinity
+			// but that's a bit less safe because the performace
+			// could appear to depend on the result.
+			if j > 0 {
 				res.Double(&res).Double(&res)
 			}
 			b1 := (s[0][i] & mask) >> (62 - 2*j)
